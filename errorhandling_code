@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SchoolGradingSystem {
+    address public administrator;
+    bool public semesterEnded = false;
+
+    struct Student {
+        string name;
+        mapping(string => uint8) grades; // subject => grade
+    }
+
+    mapping(address => Student) public students;
+
+    event StudentRegistered(address studentAddress, string studentName);
+    event GradeAssigned(address studentAddress, string subject, uint8 grade);
+    event SemesterEnded();
+
+    modifier onlyAdmin() {
+        require(msg.sender == administrator, "Only the administrator can perform this action");
+        _;
+    }
+
+    modifier semesterActive() {
+        require(!semesterEnded, "Semester has already ended");
+        _;
+    }
+
+    constructor() {
+        administrator = msg.sender;
+    }
+
+    function registerStudent(address _studentAddress, string memory _studentName) public onlyAdmin semesterActive {
+        Student storage student = students[_studentAddress];
+        require(bytes(student.name).length == 0, "Student already registered");
+
+        student.name = _studentName;
+        emit StudentRegistered(_studentAddress, _studentName);
+    }
+
+    function assignGrade(address _studentAddress, string memory _subject, uint8 _grade) public onlyAdmin semesterActive {
+        require(_grade <= 100, "Grade must be between 0 and 100");
+
+        Student storage student = students[_studentAddress];
+        require(bytes(student.name).length != 0, "Student not registered");
+
+        student.grades[_subject] = _grade;
+        emit GradeAssigned(_studentAddress, _subject, _grade);
+    }
+
+    function getGrade(address _studentAddress, string memory _subject) public view returns (uint8) {
+        Student storage student = students[_studentAddress];
+        require(bytes(student.name).length != 0, "Student not registered");
+
+        return student.grades[_subject];
+    }
+
+    function endSemester() public onlyAdmin {
+        semesterEnded = true;
+        emit SemesterEnded();
+        assert(semesterEnded == true);
+    }
+
+    fallback() external payable {
+        revert("Fallback function called, action not allowed");
+    }
+
+    receive() external payable {
+        revert("Direct transfers not allowed");
+    }
+}
